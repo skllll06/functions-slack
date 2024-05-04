@@ -1,7 +1,8 @@
 {
-  "name": "nodejs-functions-slack",
+  "name": "functions-slack",
   "version": "0.0.1",
   "private": true,
+  "main": "dist/index.js",
   "repository": {
     "url": "https://github.com/skllll/functions-slack.git",
     "type": "git"
@@ -10,13 +11,17 @@
     "node": ">=12.0.0"
   },
   "scripts": {
-    "test": "c8 mocha -p -j 2 test/*.test.js --timeout=20000 --exit"
+    "debug": "pnpm pre-build && npx @google-cloud/functions-framework --target=message",
+    "pre-build": "tsc",
+    "test": "c8 mocha -p -j 2 test/*.test.js --timeout=20000 --exit",
+    "functions:deploy": "pnpm pre-build && gcloud functions deploy functions-slack --gen2 --entry-point=message --runtime=nodejs20 --trigger-http --region us-central1"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.1.0",
     "@googleapis/kgsearch": "^1.0.0",
     "@slack/events-api": "^3.0.0",
-    "express": "^4.19.2",
+    "@types/node": "^20.12.7",
+    "dotenv": "^16.4.5",
     "ts-custom-error": "^3.3.1"
   },
   "devDependencies": {

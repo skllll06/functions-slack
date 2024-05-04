@@ -5,13 +5,12 @@ import {
 import * as functions from "@google-cloud/functions-framework";
 import { Request, Response } from "@google-cloud/functions-framework";
 import { HttpError } from "./types/error";
-import {
-  KnowledgeGraphResponse,
-  SlackAttachment,
-  SlackMessage,
-} from "./types/slack";
+import { SlackMessage } from "./types/slack";
+import * as dotenv from "dotenv";
 
-functions.http("sql", async (req: Request, res: Response) => {
+dotenv.config();
+
+functions.http("message", async (req: Request, res: Response) => {
   try {
     if (req.method !== "POST") {
       const error = new HttpError({
@@ -21,20 +20,13 @@ functions.http("sql", async (req: Request, res: Response) => {
 
       throw error;
     }
-
-    if (!req.body.text) {
-      const error = new HttpError({
-        code: 400,
-        message: "No text found in body.",
-      });
-      throw error;
-    }
-
     // Verify that this request came from Slack
     verifyWebhook({ req });
 
+    const message = req.body.text || "Please provide a message to send.";
+
     // Return a formatted message
-    const response = formatSlackMessage("TEST MESSAGE");
+    const response = formatSlackMessage(message);
 
     // Send the formatted message back to Slack
     res.json(response);
@@ -42,7 +34,7 @@ functions.http("sql", async (req: Request, res: Response) => {
     return Promise.resolve();
   } catch (err) {
     console.error(err);
-    res.status(err.code || 500).send(err);
+    res.status(500).send(err);
     return Promise.reject(err);
   }
 });
@@ -60,37 +52,17 @@ const formatSlackMessage = (query: string) => {
   // See https://api.slack.com/docs/message-formatting
   const slackMessage: SlackMessage = {
     response_type: "in_channel",
-    text: `Query: ${query}`,
-    attachments: [],
+    text: `Comment: ${query}`,
+    attachments: [
+      {
+        title: "Cloud Functions Slack Integration",
+        text: "This comment is coming to Slack via Cloud Functions",
+        image_url:
+          "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+        color: "#3367d6",
+      },
+    ],
   };
-
-  // if (entity) {
-  //   const attachment: SlackAttachment = {
-  //     color: "#3367d6",
-  //   };
-  //   if (entity.name) {
-  //     attachment.title = entity.name;
-  //     if (entity.description) {
-  //       attachment.title = `${attachment.title}: ${entity.description}`;
-  //     }
-  //   }
-  //   if (entity.detailedDescription) {
-  //     if (entity.detailedDescription.url) {
-  //       attachment.title_link = entity.detailedDescription.url;
-  //     }
-  //     if (entity.detailedDescription.articleBody) {
-  //       attachment.text = entity.detailedDescription.articleBody;
-  //     }
-  //   }
-  //   if (entity.image && entity.image.contentUrl) {
-  //     attachment.image_url = entity.image.contentUrl;
-  //   }
-  //   slackMessage.attachments.push(attachment);
-  // } else {
-  slackMessage.attachments.push({
-    text: "No results match your query...",
-  });
-  // }
 
   return slackMessage;
 };
@@ -106,7 +78,7 @@ const formatSlackMessage = (query: string) => {
 const verifyWebhook = ({ req }: { req: Request }) => {
   const signingSecret = process.env.SLACK_SECRET as string;
   const requestSignature = req.headers["x-slack-signature"] as string;
-  const body = req.rawBody.toString();
+  const body = req.rawBody?.toString();
 
   const getRequestTimestamp = (): number => {
     const headerValue = req.headers["x-slack-request-timestamp"];
@@ -125,7 +97,7 @@ const verifyWebhook = ({ req }: { req: Request }) => {
     signingSecret,
     requestSignature,
     requestTimestamp,
-    body,
+    body: body || "",
   };
 
   // This method throws an exception if an incoming request is invalid.

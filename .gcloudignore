@@ -12,5 +12,10 @@
 # below:
 .git
 .gitignore
+.vscode
 
 node_modules
+
+src/**
+tsconfig.json
+README.md
